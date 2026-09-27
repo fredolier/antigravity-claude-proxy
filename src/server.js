@@ -152,7 +152,7 @@ function parseError(error) {
         // Try to extract the quota reset time from the error
         const resetMatch = error.message.match(/quota will reset after ([\dh\dm\ds]+)/i);
         // Try to extract model from our error format "Rate limited on <model>" or JSON format
-        const modelMatch = error.message.match(/Rate limited on ([^.]+)\./) || error.message.match(/"model":\s*"([^"]+)"/);
+        const modelMatch = error.message.match(/Rate limited on ([\w.-]+)\.\s*Quota/i) || error.message.match(/Rate limited on ([\w.-]+)\./) || error.message.match(/"model":\s*"([^"]+)"/);
         const model = modelMatch ? modelMatch[1] : 'the model';
 
         if (resetMatch) {
@@ -726,6 +726,14 @@ app.post('/v1/messages', async (req, res) => {
         // Resolve model mapping if configured
         let requestedModel = model || 'claude-3-5-sonnet-20241022';
         const modelMapping = config.modelMapping || {};
+        if (modelMapping[requestedModel] && modelMapping[requestedModel].mapping) {
+            const targetModel = modelMapping[requestedModel].mapping;
+            logger.info(`[Server] Mapping model ${requestedModel} -> ${targetModel}`);
+            requestedModel = targetModel;
+        }
+
+        // Strip [1m] suffix if present (supported by Claude Code CLI / WebUI 1M context toggle)
+        requestedModel = requestedModel.replace(/\s*\[1m\]$/i, '').trim();
         if (modelMapping[requestedModel] && modelMapping[requestedModel].mapping) {
             const targetModel = modelMapping[requestedModel].mapping;
             logger.info(`[Server] Mapping model ${requestedModel} -> ${targetModel}`);

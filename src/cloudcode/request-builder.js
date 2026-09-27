@@ -27,7 +27,9 @@ import { deriveSessionId } from './session-manager.js';
 const DEFAULT_IDENTITY_SCRUB = [
     ['Nous Research', 'the assistant team'],
     ['Hermes Agent', 'the assistant'],
-    ['Hermes', 'the assistant']
+    ['Hermes', 'the assistant'],
+    ["Anthropic's Claude Agent SDK", 'Agent SDK'],
+    ['Claude Agent SDK', 'Agent SDK']
 ];
 
 function parseIdentityScrubEnv(raw) {
@@ -65,7 +67,8 @@ function scrubClientIdentity(text) {
  * @returns {Object} The Cloud Code API request payload
  */
 export function buildCloudCodeRequest(anthropicRequest, projectId, accountEmail) {
-    const model = anthropicRequest.model;
+    const rawModel = anthropicRequest.model || '';
+    const model = rawModel.replace(/\s*\[1m\]$/i, '').trim();
     const googleRequest = convertAnthropicToGoogle(anthropicRequest);
 
     // Use stable session ID derived from first user message for cache continuity
@@ -84,6 +87,12 @@ export function buildCloudCodeRequest(anthropicRequest, projectId, accountEmail)
     if (googleRequest.systemInstruction && googleRequest.systemInstruction.parts) {
         for (const part of googleRequest.systemInstruction.parts) {
             if (part.text) {
+                // Drop Claude Code internal billing and SDK identification headers that trip Google Cloud Code 429
+                if (part.text.includes('x-anthropic-billing-header') ||
+                    part.text.includes("Anthropic's Claude Agent SDK") ||
+                    part.text.includes("Claude Agent SDK")) {
+                    continue;
+                }
                 systemParts.push({ text: scrubClientIdentity(part.text) });
             }
         }

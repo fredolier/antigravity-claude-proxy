@@ -345,12 +345,13 @@ async function populateModelCache(token, projectId = null) {
  */
 export async function isValidModel(modelId, token, projectId = null) {
     try {
+        const normalizedId = (modelId || '').replace(/\s*\[1m\]$/i, '').trim();
         // Populate cache if needed
         await populateModelCache(token, projectId);
 
         // If cache is populated, validate against it
         if (modelCache.validModels.size > 0) {
-            return modelCache.validModels.has(modelId);
+            return modelCache.validModels.has(normalizedId);
         }
 
         // Cache empty (fetch failed) - fail open, let API validate
